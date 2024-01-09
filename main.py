@@ -78,10 +78,10 @@ drive = GoogleDrive(auth=gauth)
 
 # Cria um objeto GoogleDriveFile (Representação de um arquivo do drive) e envia para o drive
 # O valor do metadado mimeType representa que o arquivo é um diretório (pasta)
-driveRootFolder = drive.CreateFile({"title": "Teste", "mimeType": "application/vnd.google-apps.folder"})
+driveRootFolder = drive.CreateFile({"title": "VSC", "mimeType": "application/vnd.google-apps.folder"})
 driveRootFolder.Upload()
 
-root_directory = os.path.join(os.environ.get("USERPROFILE"), "Desktop", "Teste")
+root_directory = os.path.join(os.environ.get("USERPROFILE"), "Documents", "VSC")
 
 uploadFiles(root_directory, driveRootFolder["id"], drive)
 
