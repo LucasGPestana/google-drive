@@ -1,21 +1,22 @@
 from pydrive.auth import GoogleAuth, AuthenticationError
 from pydrive.drive import GoogleDrive
 import os
+import argparse
 
 # Serve para dar upload nos arquivos presentes no diretório local folder_directory
-def uploadFiles(folder_directory, driveFolderId, drive):
+def uploadFiles(current_directory, driveFolderId, drive):
 
-  for fileOrDir in os.listdir(folder_directory):
+  for fileOrDir in os.listdir(current_directory):
 
     # Serão criados no drive os arquivos presentes localmente no diretório atual, assim como seu conteúdo já será setado
     # O metadado parents define que o arquivo estará dentro do diretório atual no drive
     # O continue serve para ele não retornar para o diretório pai caso o diretório atual corresponda a um arquivo (Vai diretamente para a próxima iteração da lista os.listdir) 
-    if os.path.isfile(os.path.join(folder_directory, fileOrDir)):
+    if os.path.isfile(os.path.join(current_directory, fileOrDir)):
 
       driveFile = drive.CreateFile({"title": fileOrDir, 
                                     "parents": [{"kind": "drive#fileLink", "id": driveFolderId}]})
 
-      driveFile.SetContentFile(os.path.join(folder_directory, fileOrDir))
+      driveFile.SetContentFile(os.path.join(current_directory, fileOrDir))
 
       driveFile.Upload()
 
@@ -24,7 +25,7 @@ def uploadFiles(folder_directory, driveFolderId, drive):
     # Caso seja um diretório
     else:
 
-      folder_directory = os.path.join(folder_directory, fileOrDir)
+      current_directory = os.path.join(current_directory, fileOrDir)
 
       driveParentFolder = drive.CreateFile({"title": fileOrDir, 
                                               "mimeType": "application/vnd.google-apps.folder", 
@@ -34,55 +35,73 @@ def uploadFiles(folder_directory, driveFolderId, drive):
 
       # Verifica se existem subdiretórios e/ou arquivos no diretório atual
       # Também verifica se o diretório existe (Ou seja, se é válido). Caso não seja, ele roda a linha do os.path.dirname
-      if os.listdir(folder_directory) and os.path.exists(folder_directory):
+      if os.listdir(current_directory) and os.path.exists(current_directory):
 
-        uploadFiles(folder_directory, driveParentFolder["id"], drive)
+        uploadFiles(current_directory, driveParentFolder["id"], drive)
     
     # Retorna para o diretório pai do diretório atual
-    folder_directory = os.path.dirname(folder_directory)
+    current_directory = os.path.dirname(current_directory)
         
+def main(root_directory, name=None):
 
-# Verifica se o arquivo client_secrets.json está presente no mesmo diretório do script
-if not "client_secrets.json" in os.listdir(os.path.dirname(os.path.abspath(__file__))):
+  if name is None:
 
-  raise FileNotFoundError("O arquivo client_secrets.json não foi encontrado!")
+    name = os.path.basename(root_directory)
 
-try:
+  # Verifica se o arquivo client_secrets.json está presente no mesmo diretório do script
+  if not "client_secrets.json" in os.listdir(os.path.dirname(os.path.abspath(__file__))):
 
-  # Autenticação do google (Solicita as credenciais e a permissão para o uso do app, inicialmente)
-  gauth = GoogleAuth()
+    raise FileNotFoundError("O arquivo client_secrets.json não foi encontrado!")
 
-  # Carrega o json contendo as credenciais do usuário e guardando-as no atributo credentials do objeto GoogleAuth
-  gauth.LoadCredentialsFile("credentials.json")
+  try:
 
-  # Verifica se as credenciais foram preenchidas
-  if not gauth.credentials:
+    # Autenticação do google (Solicita as credenciais e a permissão para o uso do app, inicialmente)
+    gauth = GoogleAuth()
 
-    # Estabelece um servidor web para pegar o código de autorização presente na url
-    gauth.LocalWebserverAuth()
+    # Carrega o json contendo as credenciais do usuário e guardando-as no atributo credentials do objeto GoogleAuth
+    gauth.LoadCredentialsFile("credentials.json")
 
-  else:
+    # Verifica se as credenciais foram preenchidas
+    if not gauth.credentials:
 
-    # Autoriza o usuário (A partir das credenciais do atributo credentials) e constroe o serviço
-    gauth.Authorize()
+      # Estabelece um servidor web para pegar o código de autorização presente na url
+      gauth.LocalWebserverAuth()
 
-  # Salva (E atualiza) os dados das credenciais em um json
-  gauth.SaveCredentialsFile("credentials.json")
+    else:
 
-except AuthenticationError:
+      # Autoriza o usuário (A partir das credenciais do atributo credentials) e constroe o serviço
+      gauth.Authorize()
 
-  print("Erro ao autenticar o usuário! Verifique suas autorizações e tente novamente!")
+    # Salva (E atualiza) os dados das credenciais em um json
+    gauth.SaveCredentialsFile("credentials.json")
 
-# Conexão com o google drive, a partir da autenticação do google estabelecida anteriormente
-drive = GoogleDrive(auth=gauth)
+  except AuthenticationError:
 
-# Cria um objeto GoogleDriveFile (Representação de um arquivo do drive) e envia para o drive
-# O valor do metadado mimeType representa que o arquivo é um diretório (pasta)
-driveRootFolder = drive.CreateFile({"title": "VSC", "mimeType": "application/vnd.google-apps.folder"})
-driveRootFolder.Upload()
+    print("Erro ao autenticar o usuário! Verifique suas autorizações e tente novamente!")
 
-root_directory = os.path.join(os.environ.get("USERPROFILE"), "Documents", "VSC")
+  # Conexão com o google drive, a partir da autenticação do google estabelecida anteriormente
+  drive = GoogleDrive(auth=gauth)
 
-uploadFiles(root_directory, driveRootFolder["id"], drive)
+  # Cria um objeto GoogleDriveFile (Representação de um arquivo do drive) e envia para o drive
+  # O valor do metadado mimeType representa que o arquivo é um diretório (pasta)
+  driveRootFolder = drive.CreateFile({"title": name, "mimeType": "application/vnd.google-apps.folder"})
+  driveRootFolder.Upload()
+
+  root_directory = os.path.realpath(root_directory)
+
+  uploadFiles(root_directory, driveRootFolder["id"], drive)
+
+if __name__ == "__main__":
+
+  parser = argparse.ArgumentParser()
+
+  parser.add_argument("root_directory", action="store", help="Diretório local raiz para upload no google drive")
+  parser.add_argument("--name", "-n", dest="name", action="store", help="Nome do diretório no google drive (Padrão: Nome da última pasta do diretório)")
+
+  namespace = parser.parse_args()
+  
+  if os.path.isdir(namespace.root_directory):
+
+    main(namespace.root_directory, namespace.name)
 
 
