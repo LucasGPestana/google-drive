@@ -1,7 +1,6 @@
 from pydrive.auth import GoogleAuth, AuthenticationError
 from pydrive.drive import GoogleDrive
-import os
-import argparse
+import os, argparse, time, datetime
 
 # Serve para dar upload nos arquivos presentes no diretório local folder_directory
 def uploadFiles(current_directory, driveFolderId, drive):
@@ -18,7 +17,15 @@ def uploadFiles(current_directory, driveFolderId, drive):
 
       driveFile.SetContentFile(os.path.join(current_directory, fileOrDir))
 
+      start = time.time()
+
       driveFile.Upload()
+
+      end = time.time()
+
+      with open("log.txt", "ab") as file:
+
+        file.write(f"[{datetime.datetime.now().strftime('%d/%m/%Y %H:%M:%S')}] O tempo de upload de {fileOrDir}, presente em {current_directory}, foi de {(end - start) / 1000} s\n".encode())
 
       continue
     
@@ -103,5 +110,7 @@ if __name__ == "__main__":
   if os.path.isdir(namespace.root_directory):
 
     main(namespace.root_directory, namespace.name)
+  
+  else:
 
-
+    print("O caminho especificado não existe ou não é uma pasta!")
