@@ -25,7 +25,7 @@ def uploadFiles(current_directory, driveFolderId, drive):
 
       with open("log.txt", "ab") as file:
 
-        file.write(f"[{datetime.datetime.now().strftime('%d/%m/%Y %H:%M:%S')}] O tempo de upload de {fileOrDir}, presente em {current_directory}, foi de {(end - start) / 1000} s\n".encode())
+        file.write(f"[{datetime.datetime.now().strftime('%d/%m/%Y %H:%M:%S')}] O tempo de upload do arquivo {fileOrDir}, presente em {current_directory}, foi de {(end - start) / 1000} s\n".encode())
 
       continue
     
